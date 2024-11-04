@@ -1,12 +1,18 @@
 using Avalonia.Controls;
+using Avalonia.Markup.Xaml;
 
-namespace QueueAlert
+namespace QueueAlert;
+
+public partial class MainWindow : Window
 {
-    public partial class MainWindow : Window
+    public MainWindow()
     {
-        public MainWindow()
-        {
-            InitializeComponent();
-        }
+        InitializeComponent();
+        DataContext = new MainWindowViewModel();
+    }
+
+    private void InitializeComponent()
+    {
+        AvaloniaXamlLoader.Load(this);
     }
 }
