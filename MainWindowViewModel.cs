@@ -1,4 +1,6 @@
-﻿using System.Collections.ObjectModel;
+﻿using NAudio.CoreAudioApi;
+using System;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 
 namespace QueueAlert;
@@ -6,24 +8,25 @@ namespace QueueAlert;
 public class MainWindowViewModel : INotifyPropertyChanged
 {
     private readonly AudioService _audioService;
-    private string? _selectedDevice;
+    private MMDevice? _selectedDevice;
 
     public MainWindowViewModel()
     {
         _audioService = new AudioService();
-        AudioDevices = new ObservableCollection<string>(_audioService.GetAudioInputDevices());
+        AudioDevices = new ObservableCollection<MMDevice>(_audioService.GetAudioOutputDevices());
     }
 
-    public ObservableCollection<string> AudioDevices { get; }
+    public ObservableCollection<MMDevice> AudioDevices { get; }
 
-    public string? SelectedDevice
+    public MMDevice? SelectedDevice
     {
-        get => _selectedDevice;
+        get => _audioService.SelectedDevice;
         set
         {
+            Console.WriteLine("HERE");
             if (_selectedDevice != value)
             {
-                _selectedDevice = value;
+                _audioService.SelectedDevice = value;
                 OnPropertyChanged(nameof(SelectedDevice));
             }
         }
