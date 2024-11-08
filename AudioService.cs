@@ -10,9 +10,9 @@ public class AudioService
 {
     private readonly MMDeviceEnumerator _deviceEnumerator;
     private static readonly int _sampleRate = 5512;
-    private static WaveInEvent waveSource;
+    private static WasapiLoopbackCapture capture;
     private static BlockingCollection<AudioSamples> realtimeSource;
-    private MMDevice _selectedDevice;
+    private static MMDevice _selectedDevice;
     public MMDevice? SelectedDevice
     {
         get => _selectedDevice;
@@ -25,11 +25,12 @@ public class AudioService
     public AudioService()
     {
         _deviceEnumerator = new MMDeviceEnumerator();
+
     }
 
     public List<MMDevice> GetAudioOutputDevices()
     {
-        return [.. _deviceEnumerator.EnumerateAudioEndPoints(DataFlow.Capture, DeviceState.Active)];
+        return [.. _deviceEnumerator.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active)];
     }
 
     public void SelectAudioOutput(string deviceName)
@@ -44,27 +45,36 @@ public class AudioService
      */
     public void ListenToAudioOutput()
     {
-        return;
-        //_ = Task.Factory.StartNew();
+        realtimeSource = new BlockingCollection<AudioSamples>();
+        StreamAudioOutput();
+    }
+
+    public bool IsListening()
+    {
+        return capture.CaptureState == CaptureState.Starting || capture.CaptureState == CaptureState.Capturing;
     }
 
     static void StreamAudioOutput()
     {
-        var waveSource = new WaveInEvent();
-        waveSource.DeviceNumber = 0;
-        waveSource.WaveFormat = new NAudio.Wave.WaveFormat(rate: _sampleRate, bits: 16, channels: 1);
-        waveSource.DataAvailable += (_, e) =>
+        capture = new WasapiLoopbackCapture(_selectedDevice);
+        capture.DataAvailable += (_, e) =>
         {
             // using short because 16 bits per sample is used as input wave format
             short[] samples = new short[e.BytesRecorded / 2];
             Buffer.BlockCopy(e.Buffer, 0, samples, 0, e.BytesRecorded);
             // converting to [-1, +1] range
             float[] floats = Array.ConvertAll(samples, (sample => (float)sample / short.MaxValue));
-            realtimeSource.Add(new AudioSamples(floats, string.Empty, _sampleRate));
+            var sams = new AudioSamples(floats, string.Empty, _sampleRate);
+            realtimeSource.Add(sams);
         };
-        waveSource.RecordingStopped += (_, _) => Console.WriteLine("Recording stopped.");
-        waveSource.BufferMilliseconds = 1000;
-        waveSource.StartRecording();
+        capture.RecordingStopped += (_, _) => Console.WriteLine("Recording stopped.");
+        capture.StartRecording();
+    }
 
+    public void StopListening()
+    {
+        capture.StopRecording();
+        capture.Dispose();
+        Console.WriteLine(realtimeSource.ToString());
     }
 }
